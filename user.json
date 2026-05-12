@@ -2,8 +2,9 @@
     {"id": "user1", "pw": "jun1", "name": "달잠" },
     { "id": "user2", "pw": "min2", "name": "마고우" },
      { "id": "user3", "pw": "jun3", "name": "7호" },
-     { "id": "user4", "pw": "min4", "name": "" },
-     { "id": "user5", "pw": "jun5", "name": "" },
-     { "id": "user6", "pw": "min2", "name": "" },
-    { "id": "user7", "pw": "jun7", "name": "별빛" }
+     { "id": "user4", "pw": "min4", "name": "랑하유" },
+     { "id": "user5", "pw": "jun5", "name": "에모" },
+     { "id": "user6", "pw": "min2", "name": "누댐" },
+    { "id": "user7", "pw": "jun7", "name": "별빛" },
+    { "id": "guest", "pw": "1234", "name": "게스트" }
 ]
