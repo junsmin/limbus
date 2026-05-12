@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>림버스 추출 시스템</title>
+    <style>
+        :root {
+            --star-3: #FFD700; --star-2: #FF4B4B; --star-1: #888;
+            --bg: #121212; --panel: #1e1e1e;
+        }
+        body {
+            background-color: var(--bg); color: #e0e0e0;
+            font-family: 'Malgun Gothic', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px;
+        }
+
+        /* 로그인 섹션 */
+        #login-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.95);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .login-box { background: var(--panel); padding: 40px; border-radius: 12px; border: 2px solid #444; text-align: center; width: 340px; }
+        .login-box h2 { margin-bottom: 25px; color: #fff; letter-spacing: 2px; }
+        
+        #main-ui { display: none; width: 100%; max-width: 600px; text-align: center; }
+        .admin-badge { display: none; background: #6a1b9a; color: white; padding: 3px 10px; border-radius: 4px; font-size: 0.8rem; margin-left: 10px; border: 1px solid #9c27b0; }
+
+        /* 가챠 카드 스타일 */
+        #result-area { min-height: 480px; margin: 20px 0; display: flex; justify-content: center; }
+        .card {
+            width: 320px; background: #1a1a1a; border-radius: 12px; overflow: hidden;
+            border: 6px solid; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+        .star-3 { border-color: var(--star-3); box-shadow: 0 0 30px rgba(255, 215, 0, 0.3); } 
+        .star-2 { border-color: var(--star-2); box-shadow: 0 0 25px rgba(255, 75, 75, 0.2); } 
+        .star-1 { border-color: var(--star-1); }
+        .card-img { width: 100%; height: auto; display: block; object-fit: contain; background: #000; }
+        
+        /* 기록 영역 */
+        #history-section { margin-top: 30px; background: var(--panel); border-radius: 8px; padding: 20px; border: 1px solid #333; }
+        #history-list { max-height: 250px; overflow-y: auto; text-align: left; }
+        .history-item { padding: 10px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+
+        input { width: 90%; padding: 12px; margin: 8px 0; border-radius: 4px; border: 1px solid #444; background: #2a2a2a; color: white; }
+        button { padding: 12px; border-radius: 4px; border: none; cursor: pointer; transition: 0.2s; font-weight: bold; }
+        .btn-main { background: #e0e0e0; color: #000; width: 98%; margin-top: 15px; }
+        .btn-main:hover { background: #fff; }
+        .btn-admin { background: #b71c1c; color: white; display: none; font-size: 0.8rem; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>LCB 접속 인증</h2>
+            <input type="text" id="login-id" placeholder="ID">
+            <input type="password" id="login-pw" placeholder="비밀번호">
+            <button class="btn-main" onclick="attemptLogin()">인증 확인</button>
+            <p id="login-msg" style="font-size: 0.8rem; color: #ff5252; margin-top: 15px; min-height: 1.2rem;"></p>
+        </div>
+    </div>
+
+    <div id="main-ui">
+        <header style="margin-bottom: 30px; display: flex; align-items: center; justify-content: center;">
+            <span id="display-name" style="font-size: 1.1rem;"></span>
+            <span id="admin-tag" class="admin-badge">ADMIN</span>
+            <button onclick="location.reload()" style="background:none; color:#666; border:none; cursor:pointer; margin-left:15px; text-decoration: underline;">로그아웃</button>
+        </header>
+
+        <div id="result-area"></div>
+
+        <button class="btn-main" style="padding: 18px 80px; font-size: 1.3rem; border-radius: 50px; width: auto;" onclick="draw()">인격 추출</button>
+        
+        <div id="admin-controls">
+            <button class="btn-admin" onclick="clearAllData()">전체 유저 로컬 기록 파기</button>
+        </div>
+
+        <div id="history-section">
+            <h3 style="margin: 0 0 15px 0; font-size: 1rem; color: #bbb;">최근 추출 결과</h3>
+            <div id="history-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const ADMIN_PW = "faust_lover";
+        let charPool = [];
+        let userList = [];
+        let userSession = { id: "", name: "", isAdmin: false };
+
+        // 1. JSON 데이터 로드
+        Promise.all([
+            fetch('characters.json').then(res => res.json()),
+            fetch('user.json').then(res => res.json())
+        ]).then(([chars, users]) => {
+            charPool = chars;
+            userList = users;
+        }).catch(err => {
+            document.getElementById('login-msg').innerText = "데이터 로드 실패. 서버 환경을 확인하세요.";
+        });
+
+        // 2. 로그인 로직
+        function attemptLogin() {
+            const idInput = document.getElementById('login-id').value.trim();
+            const pwInput = document.getElementById('login-pw').value.trim();
+            const msg = document.getElementById('login-msg');
+
+            // 어드민 체크 (비밀번호 칸에만 입력해도 접속 가능하게 설정)
+            if (idInput === ADMIN_PW || pwInput === ADMIN_PW) {
+                userSession = { id: "admin", name: "관리자", isAdmin: true };
+                enterSystem();
+                return;
+            }
+
+            // user.json 기반 유저 체크
+            const foundUser = userList.find(u => u.id === idInput && u.pw === pwInput);
+            
+            if (foundUser) {
+                userSession = { id: foundUser.id, name: foundUser.name, isAdmin: false };
+                enterSystem();
+            } else {
+                msg.innerText = "ID 또는 비밀번호가 일치하지 않습니다.";
+            }
+        }
+
+        function enterSystem() {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('main-ui').style.display = 'block';
+            document.getElementById('display-name').innerText = `접속 수감자: ${userSession.name}`;
+            
+            if (userSession.isAdmin) {
+                document.getElementById('admin-tag').style.display = 'inline-block';
+                document.querySelector('.btn-admin').style.display = 'inline-block';
+            }
+            updateHistoryUI();
+        }
+
+        // 3. 추출 로직
+        function draw() {
+            if (charPool.length === 0) return;
+            const rarity = [1, 2, 3][Math.floor(Math.random() * 3)];
+            const filtered = charPool.filter(c => c.star === rarity);
+            const result = filtered[Math.floor(Math.random() * filtered.length)];
+
+            renderCard(result);
+            saveHistory(result);
+        }
+
+        function renderCard(char) {
+            const area = document.getElementById('result-area');
+            let imgPath = char.img.startsWith('images/') ? char.img : 'images/' + char.img;
+            area.innerHTML = `
+                <div class="card star-${char.star}">
+                    <img src="${imgPath}" class="card-img" onerror="this.src='https://via.placeholder.com/320x450/222/555?text=No+Image'">
+                    <div style="padding:20px; background: #000; text-align:center;">
+                        <div style="color:var(--star-${char.star}); font-size:1.5rem; letter-spacing:3px;">${'★'.repeat(char.star)}</div>
+                        <div style="font-weight:bold; margin-top:10px;">${char.name}</div>
+                    </div>
+                </div>`;
+        }
+
+        // 4. 기록 저장
+        function saveHistory(char) {
+            const key = `log_${userSession.id}`;
+            const history = JSON.parse(localStorage.getItem(key) || "[]");
+            history.unshift({ name: char.name, star: char.star });
+            localStorage.setItem(key, JSON.stringify(history));
+            updateHistoryUI();
+        }
+
+        function updateHistoryUI() {
+            const list = document.getElementById('history-list');
+            const key = `log_${userSession.id}`;
+            const history = JSON.parse(localStorage.getItem(key) || "[]");
+            list.innerHTML = history.map(item => `
+                <div class="history-item">
+                    <span>${item.name}</span>
+                    <span style="color:var(--star-${item.star}); font-weight:bold;">${'★'.repeat(item.star)}</span>
+                </div>
+            `).join('');
+        }
+
+        function clearAllData() {
+            if (confirm("모든 유저의 로컬 기록을 초기화하시겠습니까?")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
