@@ -10,8 +10,14 @@
         }
         body {
             background-color: var(--bg); color: #e0e0e0;
-            font-family: 'Malgun Gothic', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px;
-        }
+                font-family: 'Malgun Gothic', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px;
+                @font-face {
+             font-family: 'KotraBold';
+                 src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-10-21@1.1/KOTRA_BOLD-Bold.woff') format('woff');
+                font-weight: normal;
+                font-display: swap;
+            }
+         }
 
         /* 로그인 섹션 */
         #login-overlay {
